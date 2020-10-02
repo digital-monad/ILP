@@ -8,15 +8,11 @@ import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 import com.mapbox.geojson.Polygon;
 
-/**
- * Hello world!
- *
- */
 public class App
 {
 	
-	private static double[] nw_corner = {55.946233,-3.192473};
-	private static double[] se_corner = {55.942617,-3.184319};
+	private static final double[] nw_corner = {55.946233,-3.192473};
+	private static final double[] se_corner = {55.942617,-3.184319};
 	
     public static void main( String[] args )
     {
@@ -30,14 +26,13 @@ public class App
     		lat_points[i] = nw_corner[0] + i*lat_width;
     	}
     	
-    	List<List<List<Point>>> zoints = new ArrayList<>();
-    	
-    	
+    	var zoints = new ArrayList<List<List<Point>>>();
+    	  	
     	for(int box = 0; box < 100; box++) {
     		int lat_idx = box/10;
     		int lng_idx = box % 10;
-    		List<List<Point>> box_geometry = new ArrayList<>();
-    		List<Point> box_vertices = new ArrayList<>();
+    		var box_geometry = new ArrayList<List<Point>>();
+    		var box_vertices = new ArrayList<Point>();
     		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx]));
     		box_vertices.add(Point.fromLngLat(lng_points[lng_idx+1],lat_points[lat_idx]));
     		box_vertices.add(Point.fromLngLat(lng_points[lng_idx+1],lat_points[lat_idx+1]));
