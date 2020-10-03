@@ -2,10 +2,13 @@ package uk.ac.ed.inf.heatmap;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.HashMap;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Scanner;
 
-public class HeatmapUtils {
+public final class FileIO {
+	
+	private FileIO() {	}
 	
 	private static String[] colours = {"#00ff00","#40ff00","#80ff00","#c0ff00","#ffc000","#ff8000","#ff4000","#ff0000"};
 	
@@ -26,8 +29,19 @@ public class HeatmapUtils {
 			System.out.println("Error - File was not found");
 			e.printStackTrace();
 		}
-		
 		return predictions_array;
+	}
+	
+	public static void writeToFile(String filename, String content) {
+		try {
+		      FileWriter myWriter = new FileWriter(filename);
+		      myWriter.write(content);
+		      myWriter.close();
+		      System.out.println("Successfully wrote to the file " + filename);
+		   } catch (IOException e) {
+		      System.out.println("An error occurred.");
+		      e.printStackTrace();
+		    }
 	}
 	
 	public static String predictionToColour(int prediction_value) {

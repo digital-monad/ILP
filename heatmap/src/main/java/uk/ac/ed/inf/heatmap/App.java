@@ -16,7 +16,7 @@ public class App
 	
     public static void main( String[] args )
     {
-    	int[] predictions = HeatmapUtils.readPredictionsToArray("C:\\Users\\Rohan\\git\\ILP\\heatmap\\src\\main\\java\\uk\\ac\\ed\\inf\\heatmap\\predictions.txt");
+    	int[] predictions = FileIO.readPredictionsToArray("predictions.txt");
     	double lat_width = (se_corner[0] - nw_corner[0])/10;
     	double lng_width = (se_corner[1] - nw_corner[1])/10;
     	double[] lat_points = new double[11];
@@ -26,7 +26,7 @@ public class App
     		lat_points[i] = nw_corner[0] + i*lat_width;
     	}
     	
-    	var zoints = new ArrayList<List<List<Point>>>();
+    	var box_coordinates_list = new ArrayList<List<List<Point>>>();
     	  	
     	for(int box = 0; box < 100; box++) {
     		int lat_idx = box/10;
@@ -39,14 +39,14 @@ public class App
     		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx+1]));
     		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx]));
     		box_geometry.add(box_vertices);
-    		zoints.add(box_geometry);
+    		box_coordinates_list.add(box_geometry);
     	}
     	
-    	List<Feature> boxes = new ArrayList<Feature>();
+    	var boxes = new ArrayList<Feature>();
     	
     	for(int polygon = 0; polygon < 100; polygon++) {
-    		Feature box = Feature.fromGeometry(Polygon.fromLngLats(zoints.get(polygon)));
-    		String box_colour = HeatmapUtils.predictionToColour(predictions[polygon]);
+    		Feature box = Feature.fromGeometry(Polygon.fromLngLats(box_coordinates_list.get(polygon)));
+    		String box_colour = FileIO.predictionToColour(predictions[polygon]);
     		box.addNumberProperty("fill-opacity", 0.75);
     		box.addStringProperty("rgb-string", box_colour);
     		box.addStringProperty("fill", box_colour);
@@ -55,6 +55,7 @@ public class App
     	
     	FeatureCollection fin = FeatureCollection.fromFeatures(boxes);
     	System.out.println(fin.toJson());
+    	FileIO.writeToFile("target\\heatmap.geojson", fin.toJson());
     	
     	
     	
