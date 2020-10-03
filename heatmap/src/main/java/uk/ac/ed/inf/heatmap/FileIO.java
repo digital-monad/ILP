@@ -6,49 +6,62 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
+/**
+ * Helper class with static methods for dealing with file operations
+ *
+ * @author Rohan
+ *
+ */
 public final class FileIO {
 
 	private FileIO() {
+		// This is a helper class that is never instantiated, hence private
+		// constructor
 	}
 
-	private static String[] colours = { "#00ff00", "#40ff00", "#80ff00", "#c0ff00", "#ffc000", "#ff8000", "#ff4000",
-			"#ff0000" };
-
+	/**
+	 * Reads the predictions file into a 1x100 (1-D) integer array
+	 */
 	public static int[] readPredictionsToArray(String filename) {
+		// Prepare the output array (size 100)
 		var predictions_array = new int[100];
 		try {
 			var predictions = new File(filename);
 			var reader = new Scanner(predictions);
-			for (var i = 0; i < 10; i++) {
+			// Loop through the 10 rows of data
+			for (var row = 0; row < 10; row++) {
+				// Read line and strip spaces
 				var data = reader.nextLine().replaceAll(" ", "");
+				// Split the data on commas
 				var text_data = data.split(",");
-				for (var x = 0; x < 10; x++) {
-					predictions_array[10 * i + x] = Integer.parseInt(text_data[x]);
+				// Loop through the 10 integer strings
+				for (var column = 0; column < 10; column++) {
+					// Insert parsed integer into next slot in array
+					predictions_array[10 * row + column] = Integer.parseInt(text_data[column]);
 				}
 			}
 			reader.close();
 		} catch (FileNotFoundException e) {
+			// If the predictions file is not found
 			System.out.println("Error - File was not found");
 			e.printStackTrace();
 		}
 		return predictions_array;
 	}
 
+	/**
+	 * Writes the content of the input 'content' to destination 'filename'
+	 */
 	public static void writeToFile(String filename, String content) {
 		try {
-			var myWriter = new FileWriter(filename);
-			myWriter.write(content);
-			myWriter.close();
+			var writer = new FileWriter(filename);
+			writer.write(content);
+			writer.close();
 			System.out.println("Successfully wrote to the file " + filename);
 		} catch (IOException e) {
 			System.out.println("An error occurred.");
 			e.printStackTrace();
 		}
-	}
-
-	public static String predictionToColour(int prediction_value) {
-		var colour_range = prediction_value / 32;
-		return colours[colour_range];
 	}
 
 }
