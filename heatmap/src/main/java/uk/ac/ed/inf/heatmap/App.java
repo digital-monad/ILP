@@ -1,63 +1,18 @@
 package uk.ac.ed.inf.heatmap;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
-import com.mapbox.geojson.Point;
-import com.mapbox.geojson.Polygon;
 
-public class App
-{
-	
-	private static final double[] nw_corner = {55.946233,-3.192473};
-	private static final double[] se_corner = {55.942617,-3.184319};
-	
-    public static void main( String[] args )
-    {
-    	int[] predictions = FileIO.readPredictionsToArray("predictions.txt");
-    	double lat_width = (se_corner[0] - nw_corner[0])/10;
-    	double lng_width = (se_corner[1] - nw_corner[1])/10;
-    	double[] lat_points = new double[11];
-    	double[] lng_points = new double[11];
-    	for(int i = 0; i < 11; i++) {
-    		lng_points[i] = nw_corner[1] + i*lng_width;
-    		lat_points[i] = nw_corner[0] + i*lat_width;
-    	}
-    	
-    	var box_coordinates_list = new ArrayList<List<List<Point>>>();
-    	  	
-    	for(int box = 0; box < 100; box++) {
-    		int lat_idx = box/10;
-    		int lng_idx = box % 10;
-    		var box_geometry = new ArrayList<List<Point>>();
-    		var box_vertices = new ArrayList<Point>();
-    		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx]));
-    		box_vertices.add(Point.fromLngLat(lng_points[lng_idx+1],lat_points[lat_idx]));
-    		box_vertices.add(Point.fromLngLat(lng_points[lng_idx+1],lat_points[lat_idx+1]));
-    		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx+1]));
-    		box_vertices.add(Point.fromLngLat(lng_points[lng_idx],lat_points[lat_idx]));
-    		box_geometry.add(box_vertices);
-    		box_coordinates_list.add(box_geometry);
-    	}
-    	
-    	var boxes = new ArrayList<Feature>();
-    	
-    	for(int polygon = 0; polygon < 100; polygon++) {
-    		Feature box = Feature.fromGeometry(Polygon.fromLngLats(box_coordinates_list.get(polygon)));
-    		String box_colour = FileIO.predictionToColour(predictions[polygon]);
-    		box.addNumberProperty("fill-opacity", 0.75);
-    		box.addStringProperty("rgb-string", box_colour);
-    		box.addStringProperty("fill", box_colour);
-    		boxes.add(box);
-    	}
-    	
-    	FeatureCollection fin = FeatureCollection.fromFeatures(boxes);
-    	System.out.println(fin.toJson());
-    	FileIO.writeToFile("target\\heatmap.geojson", fin.toJson());
-    	
-    	
-    	
-    }
+public class App {
+
+	private static final double[] nw_corner = { 55.946233, -3.192473 };
+	private static final double[] se_corner = { 55.942617, -3.184319 };
+
+	public static void main(String[] args) {
+		var predictions = FileIO.readPredictionsToArray("predictions.txt");
+		var edinburghGrid = new Grid(nw_corner, se_corner);
+		edinburghGrid.computePolygonCoordinates();
+		var features = edinburghGrid.createFeaturesFromPoints(predictions);
+		var feature_collection = FeatureCollection.fromFeatures(features);
+		FileIO.writeToFile("target\\heatmap.geojson", feature_collection.toJson());
+	}
 }
