@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="uk.ac.ed.inf.heatmap.AppTest" time="0.029" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="uk.ac.ed.inf.heatmap.AppTest" time="0.03" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="14"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -15,7 +15,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="GB"/>
     <property name="sun.boot.library.path" value="C:\Users\Rohan\.p2\pool\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_14.0.2.v20200815-0932\jre\bin"/>
-    <property name="sun.java.command" value="C:\Users\Rohan\AppData\Local\Temp\surefire2578024454859802574\surefirebooter2981924787963338623.jar C:\Users\Rohan\AppData\Local\Temp\surefire2578024454859802574 2020-10-07T01-54-09_299-jvmRun1 surefire16332496543692210227tmp surefire_04042179757629084022tmp"/>
+    <property name="sun.java.command" value="C:\Users\Rohan\AppData\Local\Temp\surefire3380972149480956475\surefirebooter9042569420667405904.jar C:\Users\Rohan\AppData\Local\Temp\surefire3380972149480956475 2020-10-07T04-48-44_031-jvmRun1 surefire2884136252033405523tmp surefire_04229908623430051604tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="C:\Users\Rohan\git\ILP\heatmap\target\test-classes;C:\Users\Rohan\git\ILP\heatmap\target\classes;C:\Users\Rohan\.m2\repository\junit\junit\4.11\junit-4.11.jar;C:\Users\Rohan\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;C:\Users\Rohan\.m2\repository\com\mapbox\mapboxsdk\mapbox-sdk-geojson\5.5.0\mapbox-sdk-geojson-5.5.0.jar;C:\Users\Rohan\.m2\repository\com\google\code\gson\gson\2.8.6\gson-2.8.6.jar;"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -30,7 +30,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="surefire.real.class.path" value="C:\Users\Rohan\AppData\Local\Temp\surefire2578024454859802574\surefirebooter2981924787963338623.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\Rohan\AppData\Local\Temp\surefire3380972149480956475\surefirebooter9042569420667405904.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="14.0.2+12-46"/>
