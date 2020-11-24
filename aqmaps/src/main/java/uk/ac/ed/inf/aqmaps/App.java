@@ -1,5 +1,6 @@
 package uk.ac.ed.inf.aqmaps;
 
+import java.awt.geom.Line2D;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -11,7 +12,7 @@ import com.mapbox.geojson.Polygon;
 public class App {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		var webServer = new WebServer("http://localhost:80/");
-		var sensors = webServer.parseSensors("2020", "02", "01");
+		var sensors = webServer.parseSensors("2020", "03", "01");
 		sensors.forEach(s -> {
 			try {
 				s.setAddress(webServer.getAddressFromLocation(s.getLocation()));
@@ -41,8 +42,12 @@ public class App {
 		for (Polygon p : noFlyZones) {
 			listOfFeatures.add(Feature.fromGeometry(p));
 		}
-//		var ls = routePlanner.inside(new double[] { -3.1887, 55.9452 }, new double[] { -3.1867, 55.9452 });
 		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
-		System.out.println(fc.toJson());
+//		System.out.println(fc.toJson());
+		var test = routePlanner.calcVisibiltyGraph(new double[] { -3.1881, 55.9435 },
+				new double[] { -3.1861, 55.9444 });
+
+		System.out.println(Line2D.relativeCCW(0, 0, 1, 1, 1, 1));
+
 	}
 }
