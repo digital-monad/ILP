@@ -1,6 +1,5 @@
 package uk.ac.ed.inf.aqmaps;
 
-import java.awt.geom.Line2D;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -47,7 +46,7 @@ public class App {
 		var test = routePlanner.calcVisibiltyGraph(new double[] { -3.1881, 55.9435 },
 				new double[] { -3.1861, 55.9444 });
 
-		System.out.println(Line2D.relativeCCW(0, 0, 1, 1, 1, 1));
+		double[][] graph = { {} };
 
 	}
 }
