@@ -43,10 +43,20 @@ public class App {
 		}
 		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
 //		System.out.println(fc.toJson());
-		var test = routePlanner.calcVisibiltyGraph(new double[] { -3.1881, 55.9435 },
-				new double[] { -3.1861, 55.9444 });
+		var s = new double[] { -3.1897741556167603, 55.9422907282583 };
+		var e = new double[] { -3.1859225034713745, 55.94469403158613 };
+		var test = routePlanner.calcVisibiltyGraph(s, e);
 
-		double[][] graph = { {} };
+		var trail = routePlanner.aStar(test, test[test.length - 1], test.length - 2, test.length - 1);
+		var markers = routePlanner.getVisibilityCoordinates(s, e);
+		var fs = new ArrayList<Feature>();
+		trail.forEach(t -> {
+			var p = Point.fromLngLat(markers.get(t)[0], markers.get(t)[1]);
+			var f = Feature.fromGeometry(p);
+			fs.add(f);
+		});
+		FeatureCollection x = FeatureCollection.fromFeatures(fs);
+		System.out.println(x.toJson());
 
 	}
 }
