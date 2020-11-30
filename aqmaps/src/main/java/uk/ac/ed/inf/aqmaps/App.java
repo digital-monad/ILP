@@ -5,13 +5,13 @@ import java.util.ArrayList;
 
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
 import com.mapbox.geojson.Point;
-import com.mapbox.geojson.Polygon;
 
 public class App {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		var webServer = new WebServer("http://localhost:80/");
-		var sensors = webServer.parseSensors("2020", "03", "01");
+		var sensors = webServer.parseSensors("2020", "05", "01");
 		sensors.forEach(s -> {
 			try {
 				s.setAddress(webServer.getAddressFromLocation(s.getLocation()));
@@ -36,26 +36,26 @@ public class App {
 			pointFeature.addStringProperty("Location", s.getLocation());
 			listOfFeatures.add(pointFeature);
 		}
-		var line = Feature.fromGeometry(routePlanner.createRoute());
-		listOfFeatures.add(line);
-		for (Polygon p : noFlyZones) {
-			listOfFeatures.add(Feature.fromGeometry(p));
-		}
-		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
+//		var line = Feature.fromGeometry(routePlanner.createRoute());
+//		listOfFeatures.add(line);
+//		for (Polygon p : noFlyZones) {
+//			listOfFeatures.add(Feature.fromGeometry(p));
+//		}
+//		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
 //		System.out.println(fc.toJson());
 		var s = new double[] { -3.1897741556167603, 55.9422907282583 };
 		var e = new double[] { -3.1859225034713745, 55.94469403158613 };
 		var test = routePlanner.calcVisibiltyGraph(s, e);
-
+		var grail = new ArrayList<double[]>();
 		var trail = routePlanner.aStar(test, test[test.length - 1], test.length - 2, test.length - 1);
 		var markers = routePlanner.getVisibilityCoordinates(s, e);
-		var fs = new ArrayList<Feature>();
 		trail.forEach(t -> {
-			var p = Point.fromLngLat(markers.get(t)[0], markers.get(t)[1]);
-			var f = Feature.fromGeometry(p);
-			fs.add(f);
+			grail.add(markers.get(t));
 		});
-		FeatureCollection x = FeatureCollection.fromFeatures(fs);
+		var ps = routePlanner.trailBlazer(grail);
+		var ls = LineString.fromLngLats(ps);
+		var f = Feature.fromGeometry(ls);
+		var x = FeatureCollection.fromFeature(f);
 		System.out.println(x.toJson());
 
 	}

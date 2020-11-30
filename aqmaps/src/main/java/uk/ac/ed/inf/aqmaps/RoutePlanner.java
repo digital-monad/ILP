@@ -12,6 +12,11 @@ import com.mapbox.geojson.LineString;
 import com.mapbox.geojson.Point;
 import com.mapbox.geojson.Polygon;
 
+/* TODO - Trailblazer
+ * TODO - Start Point
+ * TODO - Nearest Insertion
+*/
+
 public class RoutePlanner {
 
 	private double[][] coordinates;
@@ -113,6 +118,20 @@ public class RoutePlanner {
 		var prev = orderedCoordinates[0];
 		for (int i = 1; i < orderedCoordinates.length; i++) {
 			var next = orderedCoordinates[i];
+
+			if (this.inside(prev, next)) {
+				var vis = this.calcVisibiltyGraph(prev, next);
+				var order = this.aStar(vis, vis[vis.length - 1], vis.length - 2, vis.length - 1);
+				var markers = this.getVisibilityCoordinates(prev, next);
+				var trail = new ArrayList<double[]>();
+				order.forEach(t -> {
+					trail.add(markers.get(t));
+				});
+				var legalPath = this.trailBlazer(trail);
+				points.addAll(legalPath);
+				prev = new double[] { legalPath.get(legalPath.size() - 1).longitude(),
+						legalPath.get(legalPath.size() - 1).latitude() };
+			}
 			var dst = this.calcDst(prev, next);
 			do {
 				steps++;
@@ -124,15 +143,19 @@ public class RoutePlanner {
 				var proposedJump = new double[2];
 				proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
 				proposedJump[1] += prev[1] + 0.0003 * Math.cos(thetaApprox);
-				while (this.inside(prev, proposedJump)) {
+				if (this.inside(prev, proposedJump)) {
 					thetaApprox += 10 * Math.PI / 180;
 					proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
 					proposedJump[1] = prev[1] + 0.0003 * Math.cos(thetaApprox);
+					if (this.inside(prev, proposedJump)) {
+						thetaApprox -= 20 * Math.PI / 180;
+						proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
+						proposedJump[1] = prev[1] + 0.0003 * Math.cos(thetaApprox);
+					}
 				}
 				prev = proposedJump;
+				points.add(Point.fromLngLat(prev[0], prev[1]));
 				dst = this.calcDst(prev, next);
-				var q = Point.fromLngLat(prev[0], prev[1]);
-				points.add(q);
 			} while (dst > 0.0002);
 		}
 		System.out.println(points.size());
@@ -250,7 +273,7 @@ public class RoutePlanner {
 			}
 		}
 		var fc = FeatureCollection.fromFeatures(temp);
-		System.out.println(fc.toJson());
+//		System.out.println(fc.toJson());
 		return visibilityGraph;
 	}
 
@@ -271,7 +294,7 @@ public class RoutePlanner {
 			branches.add(new ArrayList<Integer>());
 		}
 
-		branches.get(0).add(0);
+		branches.get(start).add(start);
 
 		while (true) {
 
@@ -304,6 +327,42 @@ public class RoutePlanner {
 
 			visited[lowestPriorityIndex] = true;
 		}
+	}
+
+	public ArrayList<Point> trailBlazer(ArrayList<double[]> trail) {
+		var points = new ArrayList<Point>();
+		points.add(Point.fromLngLat(trail.get(0)[0], trail.get(0)[1]));
+		for (int node = 0; node < trail.size() - 2; node++) {
+			var curr = trail.get(node);
+			var dest = trail.get(node + 1);
+			var next = trail.get(node + 2);
+			var count = 0;
+			while (this.inside(curr, next)) {
+				count++;
+				if (count > 10) {
+					break;
+				}
+				var theta = this.calcAngle(curr, dest);
+				var thetaApprox = Math.toRadians(Math.round(theta / 10.0) * 10);
+				var proposedJump = new double[2];
+				proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
+				proposedJump[1] += curr[1] + 0.0003 * Math.cos(thetaApprox);
+				if (this.inside(curr, proposedJump)) {
+					System.out.println("Triggered for node " + node);
+					thetaApprox += 10 * Math.PI / 180;
+					proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
+					proposedJump[1] = curr[1] + 0.0003 * Math.cos(thetaApprox);
+					if (this.inside(curr, proposedJump)) {
+						thetaApprox -= 20 * Math.PI / 180;
+						proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
+						proposedJump[1] = curr[1] + 0.0003 * Math.cos(thetaApprox);
+					}
+				}
+				curr = proposedJump;
+				points.add(Point.fromLngLat(curr[0], curr[1]));
+			}
+		}
+		return points;
 	}
 
 }
