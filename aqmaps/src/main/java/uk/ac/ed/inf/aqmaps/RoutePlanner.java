@@ -70,7 +70,7 @@ public class RoutePlanner {
 	public double calcAngle(double[] point1, double[] point2) {
 		var delta_lng = point2[0] - point1[0];
 		var delta_lat = point2[1] - point1[1];
-		return Math.toDegrees(Math.atan2(delta_lng, delta_lat));
+		return Math.toDegrees(Math.atan2(delta_lat, delta_lng));
 	}
 
 	public Sensor[] greedyAlgorithm() {
@@ -116,6 +116,7 @@ public class RoutePlanner {
 		}
 		var steps = 0;
 		var prev = orderedCoordinates[0];
+		points.add(Point.fromLngLat(prev[0], prev[1]));
 		for (int i = 1; i < orderedCoordinates.length; i++) {
 			var next = orderedCoordinates[i];
 
@@ -127,7 +128,7 @@ public class RoutePlanner {
 				order.forEach(t -> {
 					trail.add(markers.get(t));
 				});
-				var legalPath = this.trailBlazer(trail);
+				var legalPath = this.pathFinder(trail);
 				points.addAll(legalPath);
 				prev = new double[] { legalPath.get(legalPath.size() - 1).longitude(),
 						legalPath.get(legalPath.size() - 1).latitude() };
@@ -141,19 +142,24 @@ public class RoutePlanner {
 				var theta = this.calcAngle(prev, next);
 				var thetaApprox = Math.toRadians(Math.round(theta / 10.0) * 10);
 				var proposedJump = new double[2];
-				proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
-				proposedJump[1] += prev[1] + 0.0003 * Math.cos(thetaApprox);
-				if (this.inside(prev, proposedJump)) {
-					thetaApprox += 10 * Math.PI / 180;
-					proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
-					proposedJump[1] = prev[1] + 0.0003 * Math.cos(thetaApprox);
-					if (this.inside(prev, proposedJump)) {
-						thetaApprox -= 20 * Math.PI / 180;
-						proposedJump[0] = prev[0] + 0.0003 * Math.sin(thetaApprox);
-						proposedJump[1] = prev[1] + 0.0003 * Math.cos(thetaApprox);
+				proposedJump[0] = prev[0] + 0.0003 * Math.cos(thetaApprox);
+				proposedJump[1] = prev[1] + 0.0003 * Math.sin(thetaApprox);
+				if (this.proper_inside(prev, proposedJump)) {
+					var minDst = Double.MAX_VALUE;
+					var minJump = new double[2];
+					for (int th = 0; th < 360; th += 10) {
+						var angle = Math.toRadians(th);
+						proposedJump[0] = prev[0] + 0.0003 * Math.cos(angle);
+						proposedJump[1] = prev[1] + 0.0003 * Math.sin(angle);
+						var proposedDst = this.calcDst(proposedJump, next);
+						if (proposedDst < minDst && !this.proper_inside(prev, proposedJump)) {
+							minDst = proposedDst;
+							minJump = proposedJump.clone();
+						}
 					}
+					proposedJump = minJump.clone();
 				}
-				prev = proposedJump;
+				prev = proposedJump.clone();
 				points.add(Point.fromLngLat(prev[0], prev[1]));
 				dst = this.calcDst(prev, next);
 			} while (dst > 0.0002);
@@ -329,15 +335,19 @@ public class RoutePlanner {
 		}
 	}
 
-	public ArrayList<Point> trailBlazer(ArrayList<double[]> trail) {
+	public ArrayList<Point> pathFinder(ArrayList<double[]> trail) {
 		var points = new ArrayList<Point>();
+		var markers = new ArrayList<Feature>();
+		for (double[] d : trail) {
+			markers.add(Feature.fromGeometry(Point.fromLngLat(d[0], d[1])));
+		}
 		points.add(Point.fromLngLat(trail.get(0)[0], trail.get(0)[1]));
+		var curr = trail.get(0);
 		for (int node = 0; node < trail.size() - 2; node++) {
-			var curr = trail.get(node);
 			var dest = trail.get(node + 1);
 			var next = trail.get(node + 2);
 			var count = 0;
-			while (this.inside(curr, next)) {
+			while (this.proper_inside(curr, next)) {
 				count++;
 				if (count > 10) {
 					break;
@@ -345,23 +355,32 @@ public class RoutePlanner {
 				var theta = this.calcAngle(curr, dest);
 				var thetaApprox = Math.toRadians(Math.round(theta / 10.0) * 10);
 				var proposedJump = new double[2];
-				proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
-				proposedJump[1] += curr[1] + 0.0003 * Math.cos(thetaApprox);
-				if (this.inside(curr, proposedJump)) {
-					System.out.println("Triggered for node " + node);
-					thetaApprox += 10 * Math.PI / 180;
-					proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
-					proposedJump[1] = curr[1] + 0.0003 * Math.cos(thetaApprox);
-					if (this.inside(curr, proposedJump)) {
-						thetaApprox -= 20 * Math.PI / 180;
-						proposedJump[0] = curr[0] + 0.0003 * Math.sin(thetaApprox);
-						proposedJump[1] = curr[1] + 0.0003 * Math.cos(thetaApprox);
+				proposedJump[0] = curr[0] + 0.0003 * Math.cos(thetaApprox);
+				proposedJump[1] = curr[1] + 0.0003 * Math.sin(thetaApprox);
+				if (this.proper_inside(curr, proposedJump)) {
+					var minDst = Double.MAX_VALUE;
+					var minJump = new double[2];
+					for (int i = 0; i < 360; i += 10) {
+						var angle = Math.toRadians(i);
+						proposedJump[0] = curr[0] + 0.0003 * Math.cos(angle);
+						proposedJump[1] = curr[1] + 0.0003 * Math.sin(angle);
+						var proposedDst = this.calcDst(proposedJump, dest);
+						if (proposedDst < minDst && !this.proper_inside(curr, proposedJump)) {
+							minDst = proposedDst;
+							minJump = proposedJump.clone();
+						}
 					}
+					proposedJump = minJump.clone();
 				}
-				curr = proposedJump;
+				curr = proposedJump.clone();
 				points.add(Point.fromLngLat(curr[0], curr[1]));
 			}
 		}
+		var ls = LineString.fromLngLats(points);
+		markers.add(Feature.fromGeometry(ls));
+		var fc = FeatureCollection.fromFeatures(markers);
+		System.out.println(fc.toJson());
+		System.out.println(points.size());
 		return points;
 	}
 

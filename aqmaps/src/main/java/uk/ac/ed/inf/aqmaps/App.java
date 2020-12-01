@@ -5,8 +5,8 @@ import java.util.ArrayList;
 
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
-import com.mapbox.geojson.LineString;
 import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
 
 public class App {
 	public static void main(String[] args) throws IOException, InterruptedException {
@@ -36,27 +36,30 @@ public class App {
 			pointFeature.addStringProperty("Location", s.getLocation());
 			listOfFeatures.add(pointFeature);
 		}
-//		var line = Feature.fromGeometry(routePlanner.createRoute());
-//		listOfFeatures.add(line);
-//		for (Polygon p : noFlyZones) {
-//			listOfFeatures.add(Feature.fromGeometry(p));
+		var line = Feature.fromGeometry(routePlanner.createRoute());
+		listOfFeatures.add(line);
+		for (Polygon p : noFlyZones) {
+			listOfFeatures.add(Feature.fromGeometry(p));
+		}
+		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
+		System.out.println(fc.toJson());
+//		var s = new double[] { -3.1897741556167603, 55.9422907282583 };
+//		var e = new double[] { -3.1859225034713745, 55.94469403158613 };
+//		var test = routePlanner.calcVisibiltyGraph(s, e);
+//		var grail = new ArrayList<double[]>();
+//		var trail = routePlanner.aStar(test, test[test.length - 1], test.length - 2, test.length - 1);
+//		var markers = routePlanner.getVisibilityCoordinates(s, e);
+//		trail.forEach(t -> {
+//			grail.add(markers.get(t));
+//		});
+//		for (int i = 0; i < grail.size() - 1; i++) {
+//			System.out.println(routePlanner.proper_inside(grail.get(i), grail.get(i + 1)));
 //		}
-//		FeatureCollection fc = FeatureCollection.fromFeatures(listOfFeatures);
-//		System.out.println(fc.toJson());
-		var s = new double[] { -3.1897741556167603, 55.9422907282583 };
-		var e = new double[] { -3.1859225034713745, 55.94469403158613 };
-		var test = routePlanner.calcVisibiltyGraph(s, e);
-		var grail = new ArrayList<double[]>();
-		var trail = routePlanner.aStar(test, test[test.length - 1], test.length - 2, test.length - 1);
-		var markers = routePlanner.getVisibilityCoordinates(s, e);
-		trail.forEach(t -> {
-			grail.add(markers.get(t));
-		});
-		var ps = routePlanner.trailBlazer(grail);
-		var ls = LineString.fromLngLats(ps);
-		var f = Feature.fromGeometry(ls);
-		var x = FeatureCollection.fromFeature(f);
-		System.out.println(x.toJson());
+//		var ps = routePlanner.pathFinder(grail);
+//		var ls = LineString.fromLngLats(ps);
+//		var f = Feature.fromGeometry(ls);
+//		var x = FeatureCollection.fromFeature(f);
+//		System.out.println(x.toJson());
 
 	}
 }
