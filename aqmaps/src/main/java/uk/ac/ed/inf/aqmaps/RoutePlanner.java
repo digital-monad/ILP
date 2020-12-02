@@ -437,8 +437,8 @@ public class RoutePlanner {
 		var ls = LineString.fromLngLats(points);
 		markers.add(Feature.fromGeometry(ls));
 		var fc = FeatureCollection.fromFeatures(markers);
-		System.out.println(fc.toJson());
-		System.out.println(points.size());
+//		System.out.println(fc.toJson());
+//		System.out.println(points.size());
 		return points;
 	}
 
