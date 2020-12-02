@@ -35,10 +35,10 @@ public class RoutePlanner {
 			coordinates[i][1] = sensors.get(i - 1).getAddress().getCoordinates().getLat();
 		}
 		this.coordinates = coordinates;
-		this.calcDstMatrix();
 		this.noFlyZones = noFlyZones;
 		this.start = start;
 		this.sensors = sensors;
+		this.calcDstMatrix();
 //		for (int i = 0; i < this.numberOfNodes; i++) {
 //			this.sensors.add(sensors.get(i-1));
 //		}
@@ -55,6 +55,9 @@ public class RoutePlanner {
 					dstMatrix[row][col] = 0;
 				} else {
 					dstMatrix[row][col] = this.calcDst(this.coordinates[row], this.coordinates[col]);
+					if (this.proper_inside(this.coordinates[row], this.coordinates[col])) {
+						dstMatrix[row][col] += 0.0005;
+					}
 				}
 			}
 		}
@@ -106,6 +109,61 @@ public class RoutePlanner {
 		}
 		this.ordering = augmentedOrdering;
 		return sensorOrdering;
+	}
+
+	public Sensor[] nearestInsertion() {
+		var perm = new ArrayList<Integer>();
+		for (int i = 1; i < this.dstMatrix.length; i++) {
+			perm.add(i);
+		}
+
+		var cycle = new ArrayList<Integer>();
+		cycle.add(0);
+		cycle.add(0);
+
+		while (cycle.size() < this.dstMatrix.length + 1) {
+			// Find the node in perm which is closest to any node in cycle
+			var minOverallDst = Double.MAX_VALUE;
+			var overallNode = 0;
+			for (int i : cycle) {
+				// Find the closest node to i
+				var minDst = Double.MAX_VALUE;
+				var node = 0;
+				for (int n : perm) {
+					if (this.dstMatrix[n][i] < minDst) {
+						minDst = this.dstMatrix[n][i];
+						node = n;
+					}
+				}
+				if (minDst < minOverallDst) {
+					minOverallDst = minDst;
+					overallNode = node;
+				}
+			}
+			var minAdditionalCost = Double.MAX_VALUE;
+			var bestLocation = 0;
+			// Check all the edges of cycle
+			for (int cycleEdge = 0; cycleEdge < cycle.size() - 1; cycleEdge++) {
+				var edgeStart = cycle.get(cycleEdge);
+				var edgeEnd = cycle.get(cycleEdge + 1);
+				// Check the additional cost of inserting the node into this edge
+				var additionalCost = this.dstMatrix[edgeStart][overallNode] + this.dstMatrix[overallNode][edgeEnd]
+						- this.dstMatrix[edgeStart][edgeEnd];
+				if (additionalCost < minAdditionalCost) {
+					minAdditionalCost = additionalCost;
+					bestLocation = cycleEdge;
+				}
+			}
+			cycle.add(bestLocation + 1, overallNode);
+			perm.remove(Integer.valueOf(overallNode));
+		}
+		var sensors = cycle.subList(1, cycle.size() - 1);
+		var sensorList = new Sensor[this.sensors.size()];
+		for (int s = 0; s < sensors.size(); s++) {
+			sensorList[s] = this.sensors.get(sensors.get(s) - 1);
+		}
+		this.ordering = cycle.stream().mapToInt(i -> i).toArray();
+		return sensorList;
 	}
 
 	public LineString createRoute() {
