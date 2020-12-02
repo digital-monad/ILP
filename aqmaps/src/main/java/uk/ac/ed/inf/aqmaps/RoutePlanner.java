@@ -3,6 +3,7 @@ package uk.ac.ed.inf.aqmaps;
 import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
@@ -12,11 +13,6 @@ import com.mapbox.geojson.LineString;
 import com.mapbox.geojson.Point;
 import com.mapbox.geojson.Polygon;
 
-/* TODO - Trailblazer
- * TODO - Start Point
- * TODO - Nearest Insertion
-*/
-
 public class RoutePlanner {
 
 	private double[][] coordinates;
@@ -25,7 +21,7 @@ public class RoutePlanner {
 	private int numberOfNodes = 34;
 	private ArrayList<Sensor> sensors = new ArrayList<Sensor>();
 	private double[] start;
-	private int[] ordering;
+	private ArrayList<Integer> ordering;
 
 	public RoutePlanner(ArrayList<Sensor> sensors, ArrayList<Polygon> noFlyZones, double[] start) {
 		double[][] coordinates = new double[this.numberOfNodes][2];
@@ -39,9 +35,6 @@ public class RoutePlanner {
 		this.start = start;
 		this.sensors = sensors;
 		this.calcDstMatrix();
-//		for (int i = 0; i < this.numberOfNodes; i++) {
-//			this.sensors.add(sensors.get(i-1));
-//		}
 
 	}
 
@@ -76,39 +69,42 @@ public class RoutePlanner {
 		return Math.toDegrees(Math.atan2(delta_lat, delta_lng));
 	}
 
-	public Sensor[] greedyAlgorithm() {
-		var ordering = new int[this.numberOfNodes];
-		for (int i = 0; i < ordering.length; i++) {
-			ordering[i] = i;
+	public boolean tryReverse(int i, int j) {
+		// Consider the effect of reversing the segment of the permutation between i and
+		// j
+		var permCopy = new ArrayList<Integer>(this.ordering);
+		var currentCost = this.dstMatrix[permCopy.get(i - 1)][permCopy.get(i)]
+				+ this.dstMatrix[permCopy.get(j)][permCopy.get(j + 1)];
+		var newCost = this.dstMatrix[permCopy.get(i - 1)][permCopy.get(j)]
+				+ this.dstMatrix[permCopy.get(i)][permCopy.get(j + 1)];
+		if (newCost < currentCost) {
+			var firstSegment = permCopy.subList(0, i);
+			var lastSegment = permCopy.subList(j + 1, permCopy.size());
+			var midSegment = permCopy.subList(i, j + 1);
+			Collections.reverse(midSegment);
+			var changedOrdering = new ArrayList<Integer>();
+			changedOrdering.addAll(firstSegment);
+			changedOrdering.addAll(midSegment);
+			changedOrdering.addAll(lastSegment);
+			this.ordering = new ArrayList<Integer>(changedOrdering);
+			return true;
 		}
+		return false;
+	}
 
-		for (int idx = 0; idx < this.numberOfNodes - 2; idx++) {
-			var rest = Arrays.copyOfRange(ordering, idx + 1, ordering.length);
-			var minDst = 100.0;
-			var closestSensorIdx = 0;
-			for (int sensorIdx = 0; sensorIdx < rest.length; sensorIdx++) {
-				var dst = this.dstMatrix[ordering[idx]][ordering[idx + sensorIdx + 1]];
-				if (dst < minDst) {
-					closestSensorIdx = idx + sensorIdx + 1;
-					minDst = dst;
+	public void twoOptHeuristic() {
+		var order = new ArrayList<Integer>(this.ordering);
+		var better = true;
+		while (better) {
+			better = false;
+			for (int j = 1; j < order.size() - 1; j++) {
+				for (int i = 1; i < j; i++) {
+					if (this.tryReverse(i, j)) {
+						better = true;
+					}
 				}
 			}
-			var swapSensor = ordering[closestSensorIdx];
-			ordering[closestSensorIdx] = ordering[idx + 1];
-			ordering[idx + 1] = swapSensor;
-
 		}
-		var augmentedOrdering = new int[this.numberOfNodes + 1];
-		for (int i = 0; i < ordering.length; i++) {
-			augmentedOrdering[i] = ordering[i];
-		}
-		augmentedOrdering[this.numberOfNodes] = 0;
-		var sensorOrdering = new Sensor[this.numberOfNodes - 1];
-		for (int i = 1; i < this.numberOfNodes; i++) {
-			sensorOrdering[i - 1] = this.sensors.get(ordering[i] - 1);
-		}
-		this.ordering = augmentedOrdering;
-		return sensorOrdering;
 	}
 
 	public Sensor[] nearestInsertion() {
@@ -162,7 +158,7 @@ public class RoutePlanner {
 		for (int s = 0; s < sensors.size(); s++) {
 			sensorList[s] = this.sensors.get(sensors.get(s) - 1);
 		}
-		this.ordering = cycle.stream().mapToInt(i -> i).toArray();
+		this.ordering = new ArrayList<Integer>(cycle);
 		return sensorList;
 	}
 
@@ -170,7 +166,7 @@ public class RoutePlanner {
 		var points = new ArrayList<Point>();
 		var orderedCoordinates = new double[this.numberOfNodes + 1][2];
 		for (int i = 0; i < orderedCoordinates.length; i++) {
-			orderedCoordinates[i] = this.coordinates[this.ordering[i]];
+			orderedCoordinates[i] = this.coordinates[this.ordering.get(i)];
 		}
 		var steps = 0;
 		var prev = orderedCoordinates[0];

@@ -22,7 +22,7 @@ public class App {
 				if (d.length() == 1) {
 					d = "0" + d;
 				}
-				var sensors = webServer.parseSensors("2021", m, d);
+				var sensors = webServer.parseSensors("2020", m, d);
 				sensors.forEach(s -> {
 					try {
 						s.setAddress(webServer.getAddressFromLocation(s.getLocation()));
@@ -38,6 +38,7 @@ public class App {
 				var listOfPoints = new ArrayList<Point>(33);
 //				var ordering = routePlanner.greedyAlgorithm();
 				var ordering = routePlanner.nearestInsertion();
+				routePlanner.twoOptHeuristic();
 				for (int i = 0; i < ordering.length; i++) {
 					var s = ordering[i];
 					var c = s.getAddress().getCoordinates();
@@ -57,6 +58,5 @@ public class App {
 //				System.out.println(fc.toJson());
 			}
 		}
-
 	}
 }
