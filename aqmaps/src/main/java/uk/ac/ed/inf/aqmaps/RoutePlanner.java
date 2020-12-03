@@ -38,6 +38,18 @@ public class RoutePlanner {
 
 	}
 
+	public double[][] getCoordinates() {
+		return coordinates;
+	}
+
+	public int getNumberOfNodes() {
+		return numberOfNodes;
+	}
+
+	public ArrayList<Integer> getOrdering() {
+		return ordering;
+	}
+
 	public void calcDstMatrix() {
 		double[][] dstMatrix = new double[this.numberOfNodes][this.numberOfNodes];
 		for (int row = 0; row < this.numberOfNodes; row++) {
@@ -107,7 +119,7 @@ public class RoutePlanner {
 		}
 	}
 
-	public Sensor[] nearestInsertion() {
+	public void nearestInsertion() {
 		var perm = new ArrayList<Integer>();
 		for (int i = 1; i < this.dstMatrix.length; i++) {
 			perm.add(i);
@@ -153,75 +165,20 @@ public class RoutePlanner {
 			cycle.add(bestLocation + 1, overallNode);
 			perm.remove(Integer.valueOf(overallNode));
 		}
-		var sensors = cycle.subList(1, cycle.size() - 1);
-		var sensorList = new Sensor[this.sensors.size()];
-		for (int s = 0; s < sensors.size(); s++) {
-			sensorList[s] = this.sensors.get(sensors.get(s) - 1);
-		}
 		this.ordering = new ArrayList<Integer>(cycle);
-		return sensorList;
 	}
 
-	public LineString createRoute() {
-		var points = new ArrayList<Point>();
-		var orderedCoordinates = new double[this.numberOfNodes + 1][2];
-		for (int i = 0; i < orderedCoordinates.length; i++) {
-			orderedCoordinates[i] = this.coordinates[this.ordering.get(i)];
+	public Sensor[] generateOrdering() {
+		// Applies the combination of algorithms to produce a good ordering of sensors
+		// for the drone to visit
+		this.nearestInsertion();
+		this.twoOptHeuristic();
+		var sensorList = new Sensor[this.sensors.size()];
+		var sensorOrdering = this.ordering.subList(1, this.ordering.size() - 1);
+		for (int s = 0; s < sensorOrdering.size(); s++) {
+			sensorList[s] = this.sensors.get(sensorOrdering.get(s) - 1);
 		}
-		var steps = 0;
-		var prev = orderedCoordinates[0];
-		points.add(Point.fromLngLat(prev[0], prev[1]));
-		for (int i = 1; i < orderedCoordinates.length; i++) {
-			var next = orderedCoordinates[i];
-
-			if (this.inside(prev, next)) {
-				var vis = this.calcVisibiltyGraph(prev, next);
-				var order = this.aStar(vis, vis[vis.length - 1], vis.length - 2, vis.length - 1);
-				var markers = this.getVisibilityCoordinates(prev, next);
-				var trail = new ArrayList<double[]>();
-				order.forEach(t -> {
-					trail.add(markers.get(t));
-				});
-				var legalPath = this.pathFinder(trail);
-				points.addAll(legalPath);
-				prev = new double[] { legalPath.get(legalPath.size() - 1).longitude(),
-						legalPath.get(legalPath.size() - 1).latitude() };
-			}
-			var dst = this.calcDst(prev, next);
-			do {
-				steps++;
-				if (steps > 150) {
-					break;
-				}
-				var theta = this.calcAngle(prev, next);
-				var thetaApprox = Math.toRadians(Math.round(theta / 10.0) * 10);
-				var proposedJump = new double[2];
-				proposedJump[0] = prev[0] + 0.0003 * Math.cos(thetaApprox);
-				proposedJump[1] = prev[1] + 0.0003 * Math.sin(thetaApprox);
-				if (this.proper_inside(prev, proposedJump)) {
-					var minDst = Double.MAX_VALUE;
-					var minJump = new double[2];
-					for (int th = 0; th < 360; th += 10) {
-						var angle = Math.toRadians(th);
-						proposedJump[0] = prev[0] + 0.0003 * Math.cos(angle);
-						proposedJump[1] = prev[1] + 0.0003 * Math.sin(angle);
-						var proposedDst = this.calcDst(proposedJump, next);
-						if (proposedDst < minDst && !this.proper_inside(prev, proposedJump)) {
-							minDst = proposedDst;
-							minJump = proposedJump.clone();
-						}
-					}
-					proposedJump = minJump.clone();
-				}
-				prev = proposedJump.clone();
-				points.add(Point.fromLngLat(prev[0], prev[1]));
-				dst = this.calcDst(prev, next);
-			} while (dst > 0.0002);
-		}
-		System.out.println(points.size());
-
-		return LineString.fromLngLats(points);
-
+		return sensorList;
 	}
 
 	public boolean inside(double[] segmentStart, double[] segmentEnd) {
@@ -387,55 +344,6 @@ public class RoutePlanner {
 
 			visited[lowestPriorityIndex] = true;
 		}
-	}
-
-	public ArrayList<Point> pathFinder(ArrayList<double[]> trail) {
-		var points = new ArrayList<Point>();
-		var markers = new ArrayList<Feature>();
-		for (double[] d : trail) {
-			markers.add(Feature.fromGeometry(Point.fromLngLat(d[0], d[1])));
-		}
-		points.add(Point.fromLngLat(trail.get(0)[0], trail.get(0)[1]));
-		var curr = trail.get(0);
-		for (int node = 0; node < trail.size() - 2; node++) {
-			var dest = trail.get(node + 1);
-			var next = trail.get(node + 2);
-			var count = 0;
-			while (this.proper_inside(curr, next)) {
-				count++;
-				if (count > 10) {
-					break;
-				}
-				var theta = this.calcAngle(curr, dest);
-				var thetaApprox = Math.toRadians(Math.round(theta / 10.0) * 10);
-				var proposedJump = new double[2];
-				proposedJump[0] = curr[0] + 0.0003 * Math.cos(thetaApprox);
-				proposedJump[1] = curr[1] + 0.0003 * Math.sin(thetaApprox);
-				if (this.proper_inside(curr, proposedJump)) {
-					var minDst = Double.MAX_VALUE;
-					var minJump = new double[2];
-					for (int i = 0; i < 360; i += 10) {
-						var angle = Math.toRadians(i);
-						proposedJump[0] = curr[0] + 0.0003 * Math.cos(angle);
-						proposedJump[1] = curr[1] + 0.0003 * Math.sin(angle);
-						var proposedDst = this.calcDst(proposedJump, dest);
-						if (proposedDst < minDst && !this.proper_inside(curr, proposedJump)) {
-							minDst = proposedDst;
-							minJump = proposedJump.clone();
-						}
-					}
-					proposedJump = minJump.clone();
-				}
-				curr = proposedJump.clone();
-				points.add(Point.fromLngLat(curr[0], curr[1]));
-			}
-		}
-		var ls = LineString.fromLngLats(points);
-		markers.add(Feature.fromGeometry(ls));
-		var fc = FeatureCollection.fromFeatures(markers);
-//		System.out.println(fc.toJson());
-//		System.out.println(points.size());
-		return points;
 	}
 
 }
