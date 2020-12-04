@@ -1,6 +1,7 @@
 package uk.ac.ed.inf.aqmaps;
 
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
@@ -11,16 +12,30 @@ import com.mapbox.geojson.Polygon;
 public class Drone {
 
 	private RoutePlanner routePlanner;
+	private BuildingPlanner buildingPlanner;
 	private ArrayList<String> flightPath = new ArrayList<String>(150); // Flightpath log to be written to file
+
+	public ArrayList<String> getFlightPath() {
+		return flightPath;
+	}
+
 	private Sensor[] orderedSensors; // An array of sensors in the desired visit order, as computed by the algorithm
 	private ArrayList<Feature> markers = new ArrayList<Feature>(33); // GeoJSON features containing the sensors
+
+	public ArrayList<Feature> getMarkers() {
+		return markers;
+	}
+
 	private String[] colours = { "#00ff00", "#40ff00", "#80ff00", "#c0ff00", "#ffc000", "#ff8000", "#ff4000",
 			"#ff0000" };
+	private ArrayList<Polygon> noFlyZones;
 
 	public Drone(ArrayList<Sensor> sensors, ArrayList<Polygon> noFlyZones, double[] start) {
 
 		this.routePlanner = new RoutePlanner(sensors, noFlyZones, start); // Object to assist with routefinding
+		this.buildingPlanner = new BuildingPlanner(noFlyZones); // Object to assist with building avoidance
 		this.orderedSensors = this.routePlanner.generateOrdering(); // Get the desired order of sensors to visit
+		this.noFlyZones = routePlanner.getNoFlyZones(); // Load the no fly zones into class for convenient access
 	}
 
 	public LineString fly() {
@@ -33,17 +48,17 @@ public class Drone {
 		}
 		var moves = 0;
 		var prev = orderedCoordinates[0]; // Holds the current position of the drone
-		points.add(Point.fromLngLat(prev[0], prev[1]));
+		points.add(Point.fromLngLat(prev[0], prev[1])); // Add the start point
 		for (int node = 1; node < orderedCoordinates.length; node++) {
 			// Iterate through all the nodes in the sequence to visit after starting
 			var next = orderedCoordinates[node];
 
-			if (routePlanner.inside(prev, next)) {
+			if (routePlanner.inside(prev, next, this.noFlyZones)) {
 				// If the straight line between the current point and the next sensor intersects
 				// a no fly zone
-				var vis = routePlanner.calcVisibiltyGraph(prev, next);
-				var order = routePlanner.aStar(vis, vis[vis.length - 1], vis.length - 2, vis.length - 1);
-				var markers = routePlanner.getVisibilityCoordinates(prev, next);
+				var vis = buildingPlanner.calcVisibiltyGraph(prev, next);
+				var order = buildingPlanner.aStar(vis, vis[vis.length - 1], vis.length - 2, vis.length - 1);
+				var markers = buildingPlanner.getVisibilityCoordinates(prev, next);
 				var trail = new ArrayList<double[]>();
 				order.forEach(t -> {
 					trail.add(markers.get(t));
@@ -51,7 +66,7 @@ public class Drone {
 				for (int node1 = 0; node1 < trail.size() - 2; node1++) {
 					var second = trail.get(node1 + 1);
 					var third = trail.get(node1 + 2);
-					while (routePlanner.proper_inside(prev, third)) {
+					while (routePlanner.proper_inside(prev, third, this.noFlyZones)) {
 						moves++;
 						if (moves >= 150) {
 							break;
@@ -63,7 +78,7 @@ public class Drone {
 						var proposedJump = new double[2];
 						proposedJump[0] = prev[0] + 0.0003 * Math.cos(thetaApprox);
 						proposedJump[1] = prev[1] + 0.0003 * Math.sin(thetaApprox);
-						if (routePlanner.proper_inside(prev, proposedJump)) {
+						if (routePlanner.proper_inside(prev, proposedJump, this.noFlyZones)) {
 							var minDst = Double.MAX_VALUE;
 							var minJump = new double[2];
 							for (int th = 0; th < 360; th += 10) {
@@ -71,7 +86,8 @@ public class Drone {
 								proposedJump[0] = prev[0] + 0.0003 * Math.cos(angle);
 								proposedJump[1] = prev[1] + 0.0003 * Math.sin(angle);
 								var proposedDst = routePlanner.calcDst(proposedJump, second);
-								if (proposedDst < minDst && !routePlanner.proper_inside(prev, proposedJump)) {
+								if (proposedDst < minDst
+										&& !routePlanner.proper_inside(prev, proposedJump, this.noFlyZones)) {
 									minDst = proposedDst;
 									minJump = proposedJump.clone();
 									chosenAngle = th;
@@ -99,7 +115,7 @@ public class Drone {
 				proposedJump[0] = prev[0] + 0.0003 * Math.cos(thetaApprox);
 				proposedJump[1] = prev[1] + 0.0003 * Math.sin(thetaApprox);
 				chosenAngle = (int) (Math.round(theta / 10.0) * 10);
-				if (routePlanner.proper_inside(prev, proposedJump)) {
+				if (routePlanner.proper_inside(prev, proposedJump, this.noFlyZones)) {
 					// If the proposed move is illegal, try every possible legal angle and pick the
 					// one which ends up closest to the next sensor
 					var minDst = Double.MAX_VALUE; // Set min dist to infinity for now
@@ -109,7 +125,7 @@ public class Drone {
 						proposedJump[0] = prev[0] + 0.0003 * Math.cos(angle);
 						proposedJump[1] = prev[1] + 0.0003 * Math.sin(angle);
 						var proposedDst = routePlanner.calcDst(proposedJump, next);
-						if (proposedDst < minDst && !routePlanner.proper_inside(prev, proposedJump)) {
+						if (proposedDst < minDst && !routePlanner.proper_inside(prev, proposedJump, this.noFlyZones)) {
 							// Update the preferred move with this if it is better
 							minDst = proposedDst;
 							minJump = proposedJump.clone();
@@ -119,7 +135,7 @@ public class Drone {
 					proposedJump = minJump.clone();
 				}
 				var loc = "null";
-				if (routePlanner.calcDst(proposedJump, next) <= 0.0002 && node < orderedCoordinates.length - 1) {
+				if (routePlanner.calcDst(proposedJump, next) < 0.0002 && node < orderedCoordinates.length - 1) {
 					loc = this.orderedSensors[node - 1].getLocation();
 					this.sensorToMarker(this.orderedSensors[node - 1]);
 				}
@@ -127,15 +143,13 @@ public class Drone {
 				prev = proposedJump.clone();
 				points.add(Point.fromLngLat(prev[0], prev[1]));
 				dst = routePlanner.calcDst(prev, next);
-			} while (dst > 0.0002);
+			} while (dst >= 0.0002);
 		}
-		System.out.println(points.size());
-		FileOutput.logFlightPath(this.flightPath, "testFlightPath.txt");
-		var l = LineString.fromLngLats(points);
-		this.markers.add(Feature.fromGeometry(l));
-		var fc = FeatureCollection.fromFeatures(this.markers);
+		System.out.println("Drone flight terminated after " + (points.size() - 1) + " moves");
+		var moveList = points.stream().map(p -> Feature.fromGeometry(p)).collect(Collectors.toList());
+		moveList.add(Feature.fromGeometry(LineString.fromLngLats(points)));
+		var fc = FeatureCollection.fromFeatures(moveList);
 		System.out.println(fc.toJson());
-
 		return LineString.fromLngLats(points);
 	}
 

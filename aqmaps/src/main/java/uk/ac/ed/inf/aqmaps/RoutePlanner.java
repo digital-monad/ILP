@@ -1,19 +1,11 @@
 package uk.ac.ed.inf.aqmaps;
 
-import java.awt.geom.Line2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.stream.Collectors;
 
-import com.mapbox.geojson.Feature;
-import com.mapbox.geojson.FeatureCollection;
-import com.mapbox.geojson.LineString;
-import com.mapbox.geojson.Point;
 import com.mapbox.geojson.Polygon;
 
-public class RoutePlanner {
+public class RoutePlanner extends Planner {
 
 	private double[][] coordinates;
 	public double[][] dstMatrix;
@@ -21,6 +13,11 @@ public class RoutePlanner {
 	private int numberOfNodes = 34;
 	private ArrayList<Sensor> sensors = new ArrayList<Sensor>();
 	private double[] start;
+
+	public ArrayList<Polygon> getNoFlyZones() {
+		return noFlyZones;
+	}
+
 	private ArrayList<Integer> ordering;
 
 	public RoutePlanner(ArrayList<Sensor> sensors, ArrayList<Polygon> noFlyZones, double[] start) {
@@ -60,25 +57,13 @@ public class RoutePlanner {
 					dstMatrix[row][col] = 0;
 				} else {
 					dstMatrix[row][col] = this.calcDst(this.coordinates[row], this.coordinates[col]);
-					if (this.proper_inside(this.coordinates[row], this.coordinates[col])) {
+					if (this.proper_inside(this.coordinates[row], this.coordinates[col], this.noFlyZones)) {
 						dstMatrix[row][col] += 0.0005;
 					}
 				}
 			}
 		}
 		this.dstMatrix = dstMatrix;
-	}
-
-	public double calcDst(double[] point1, double[] point2) {
-		// TODO - Remove the square root
-		var dst = Math.sqrt(Math.pow(point1[0] - point2[0], 2) + Math.pow(point1[1] - point2[1], 2));
-		return dst;
-	}
-
-	public double calcAngle(double[] point1, double[] point2) {
-		var delta_lng = point2[0] - point1[0];
-		var delta_lat = point2[1] - point1[1];
-		return Math.toDegrees(Math.atan2(delta_lat, delta_lng));
 	}
 
 	public boolean tryReverse(int i, int j) {
@@ -179,171 +164,6 @@ public class RoutePlanner {
 			sensorList[s] = this.sensors.get(sensorOrdering.get(s) - 1);
 		}
 		return sensorList;
-	}
-
-	public boolean inside(double[] segmentStart, double[] segmentEnd) {
-		for (Polygon building : this.noFlyZones) {
-			for (int i = 0; i < building.coordinates().get(0).size() - 1; i++) {
-				var lng1 = building.coordinates().get(0).get(i).coordinates().get(0);
-				var lat1 = building.coordinates().get(0).get(i).coordinates().get(1);
-				var lng2 = building.coordinates().get(0).get(i + 1).coordinates().get(0);
-				var lat2 = building.coordinates().get(0).get(i + 1).coordinates().get(1);
-				var lng3 = segmentStart[0];
-				var lat3 = segmentStart[1];
-				var lng4 = segmentEnd[0];
-				var lat4 = segmentEnd[1];
-				var intersect = Line2D.linesIntersect(lng1, lat1, lng2, lat2, lng3, lat3, lng4, lat4);
-				if (intersect) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	public boolean proper_inside(double[] segmentStart, double[] segmentEnd) {
-		for (Polygon building : this.noFlyZones) {
-			var visitedVertices = new HashSet<ArrayList<Double>>();
-			for (int i = 0; i < building.coordinates().get(0).size() - 1; i++) {
-				var lng1 = building.coordinates().get(0).get(i).coordinates().get(0);
-				var lat1 = building.coordinates().get(0).get(i).coordinates().get(1);
-				var lng2 = building.coordinates().get(0).get(i + 1).coordinates().get(0);
-				var lat2 = building.coordinates().get(0).get(i + 1).coordinates().get(1);
-				var lng3 = segmentStart[0];
-				var lat3 = segmentStart[1];
-				var lng4 = segmentEnd[0];
-				var lat4 = segmentEnd[1];
-				var point1 = new ArrayList<Double>();
-				point1.add(lng1);
-				point1.add(lat1);
-				visitedVertices.add(point1);
-				if ((Arrays.equals(segmentStart, new double[] { lng1, lat1 })
-						&& Arrays.equals(segmentEnd, new double[] { lng2, lat2 }))
-						|| (Arrays.equals(segmentEnd, new double[] { lng1, lat1 })
-								&& Arrays.equals(segmentStart, new double[] { lng2, lat2 }))) {
-					break;
-
-				} else {
-					var point2 = new ArrayList<Double>();
-					var point3 = new ArrayList<Double>();
-					point2.add(lng3);
-					point2.add(lat3);
-					point3.add(lng4);
-					point3.add(lat4);
-					if (visitedVertices.contains(point2) && visitedVertices.contains(point3)) {
-						return true;
-					}
-					var side1 = Line2D.relativeCCW(lng1, lat1, lng2, lat2, lng3, lat3);
-					var side2 = Line2D.relativeCCW(lng1, lat1, lng2, lat2, lng4, lat4);
-					if (side1 != side2 && side1 != 0 && side2 != 0) {
-						var side3 = Line2D.relativeCCW(lng3, lat3, lng4, lat4, lng1, lat1);
-						var side4 = Line2D.relativeCCW(lng3, lat3, lng4, lat4, lng2, lat2);
-						if (side3 != side4 && side3 != 0 && side4 != 0) {
-							return true;
-						}
-					}
-				}
-
-			}
-		}
-		return false;
-
-	}
-
-	public ArrayList<double[]> getVisibilityCoordinates(double[] start, double[] end) {
-		var nodes = new ArrayList<double[]>();
-		for (Polygon building : this.noFlyZones) {
-			var vertices = building.coordinates().get(0);
-			vertices = vertices.subList(0, vertices.size() - 1);
-			var lnglats = vertices.stream().map(p -> new double[] { p.longitude(), p.latitude() })
-					.collect(Collectors.toList());
-			nodes.addAll(lnglats);
-		}
-		nodes.add(start);
-		nodes.add(end);
-		return nodes;
-	}
-
-	public double[][] calcVisibiltyGraph(double[] start, double[] end) {
-		var temp = new ArrayList<Feature>();
-		var nodes = this.getVisibilityCoordinates(start, end);
-		var visibilityGraph = new double[nodes.size()][nodes.size()];
-		for (int row = 0; row < nodes.size(); row++) {
-			for (int col = 0; col < nodes.size(); col++) {
-				if (row > col) {
-					visibilityGraph[row][col] = visibilityGraph[col][row];
-				} else if (row == col) {
-					visibilityGraph[row][col] = 0;
-				} else {
-					if (this.proper_inside(nodes.get(row), nodes.get(col))) {
-						visibilityGraph[row][col] = 0;
-					} else {
-						visibilityGraph[row][col] = this.calcDst(nodes.get(row), nodes.get(col));
-						var p1 = Point.fromLngLat(nodes.get(row)[0], nodes.get(row)[1]);
-						var p2 = Point.fromLngLat(nodes.get(col)[0], nodes.get(col)[1]);
-						var points = new ArrayList<Point>();
-						points.add(p1);
-						points.add(p2);
-						temp.add(Feature.fromGeometry(LineString.fromLngLats(points)));
-					}
-				}
-			}
-		}
-		var fc = FeatureCollection.fromFeatures(temp);
-//		System.out.println(fc.toJson());
-		return visibilityGraph;
-	}
-
-	public ArrayList<Integer> aStar(double[][] graph, double[] heuristic, int start, int goal) {
-
-		var distances = new double[graph.length];
-		Arrays.fill(distances, Integer.MAX_VALUE);
-		distances[start] = 0;
-
-		double[] priorities = new double[graph.length];
-		Arrays.fill(priorities, Integer.MAX_VALUE);
-		priorities[start] = heuristic[start];
-
-		boolean[] visited = new boolean[graph.length];
-
-		var branches = new ArrayList<ArrayList<Integer>>();
-		for (double[] element : graph) {
-			branches.add(new ArrayList<Integer>());
-		}
-
-		branches.get(start).add(start);
-
-		while (true) {
-
-			double lowestPriority = Integer.MAX_VALUE;
-			int lowestPriorityIndex = -1;
-			for (int i = 0; i < priorities.length; i++) {
-				if (priorities[i] < lowestPriority && !visited[i]) {
-					lowestPriority = priorities[i];
-					lowestPriorityIndex = i;
-				}
-			}
-
-			if (lowestPriorityIndex == -1) {
-				return null;
-			} else if (lowestPriorityIndex == goal) {
-				return branches.get(lowestPriorityIndex);
-			}
-
-			for (int i = 0; i < graph[lowestPriorityIndex].length; i++) {
-				if (graph[lowestPriorityIndex][i] != 0 && !visited[i]) {
-					if (distances[lowestPriorityIndex] + graph[lowestPriorityIndex][i] < distances[i]) {
-						distances[i] = distances[lowestPriorityIndex] + graph[lowestPriorityIndex][i];
-						priorities[i] = distances[i] + heuristic[i];
-						branches.get(i).clear();
-						branches.get(i).addAll(branches.get(lowestPriorityIndex));
-						branches.get(i).add(i);
-					}
-				}
-			}
-
-			visited[lowestPriorityIndex] = true;
-		}
 	}
 
 }
