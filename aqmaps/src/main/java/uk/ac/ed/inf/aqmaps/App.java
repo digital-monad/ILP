@@ -5,7 +5,7 @@ import java.io.IOException;
 public class App {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		var webServer = new WebServer("http://localhost:80/");
-		var sensors = webServer.parseSensors("2020", "01", "01");
+		var sensors = webServer.parseSensors("2020", "11", "11");
 		sensors.forEach(s -> {
 			try {
 				s.setAddress(webServer.getAddressFromLocation(s.getLocation()));
@@ -18,9 +18,6 @@ public class App {
 		double[] start = { -3.1878, 55.9444 };
 		var drone = new Drone(sensors, noFlyZones, start);
 		var l = drone.fly();
-//		var r = new RoutePlanner(sensors, noFlyZones, start);
-//		r.generateOrdering();
-//		var l = r.createRoute();
 
 	}
 }

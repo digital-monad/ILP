@@ -130,7 +130,7 @@ public class Drone {
 			} while (dst > 0.0002);
 		}
 		System.out.println(points.size());
-		System.out.println(this.flightPath.get(0));
+		FileOutput.logFlightPath(this.flightPath, "testFlightPath.txt");
 		var l = LineString.fromLngLats(points);
 		this.markers.add(Feature.fromGeometry(l));
 		var fc = FeatureCollection.fromFeatures(this.markers);
